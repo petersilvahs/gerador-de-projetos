@@ -1,6 +1,6 @@
 # 📁 Gerador de Projetos
 
-Este é um sistema simples de gerenciamento de projetos desenvolvido em **React + TypeScript** com **Chakra UI**. A aplicação permite **criar, editar, favoritar e remover projetos**, com suporte a **busca, ordenação e salvamento local (localStorage)**.
+Este é um sistema de gerenciamento de projetos desenvolvido em **React + TypeScript** com **Chakra UI**. A aplicação permite **criar, editar, favoritar e remover projetos**, com suporte a **busca, ordenação e salvamento local (localStorage)**.
 
 ## 🚀 Funcionalidades
 
