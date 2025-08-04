@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react'
 import {
   Box, Button, Flex, FormControl, FormLabel,
-  Heading, Input, Text, useToast, Image, Icon, VStack
+  Heading, Input, Icon, useToast, Image
 } from '@chakra-ui/react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { FiArrowLeft, FiUpload } from 'react-icons/fi'
+import { FiArrowLeft } from 'react-icons/fi'
+import { ImageUploader } from '../components/ImageUploader'
+import { getStoredProjects, saveProjects } from '../utils/storage'
 
-const LOCAL_STORAGE_KEY = 'gerador-projetos'
+const DEFAULT_IMAGE = 'Image.png'
 
 export function ProjectForm() {
   const location = useLocation()
   const editingProject = location.state?.project
 
+  const [id, setId] = useState<number | null>(null)
   const [name, setName] = useState('')
   const [client, setClient] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [coverImage, setCoverImage] = useState<string | null>(null)
-  const [id, setId] = useState<number | null>(null)
 
   const navigate = useNavigate()
   const toast = useToast()
@@ -44,23 +46,22 @@ export function ProjectForm() {
       return
     }
 
-    const storedProjects = localStorage.getItem(LOCAL_STORAGE_KEY)
-    const projects = storedProjects ? JSON.parse(storedProjects) : []
+    const projects = getStoredProjects()
 
     if (id !== null) {
       const updatedProjects = projects.map((proj: any) =>
         proj.id === id
           ? {
-              ...proj,
-              name,
-              client,
-              startDate,
-              endDate,
-              coverImage: coverImage || 'Image.png',
-            }
+            ...proj,
+            name,
+            client,
+            startDate,
+            endDate,
+            coverImage: coverImage || DEFAULT_IMAGE,
+          }
           : proj
       )
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedProjects))
+      saveProjects(updatedProjects)
     } else {
       const newProject = {
         id: Date.now(),
@@ -68,11 +69,10 @@ export function ProjectForm() {
         client,
         startDate,
         endDate,
-        coverImage: coverImage || 'Image.png',
+        coverImage: coverImage || DEFAULT_IMAGE,
         isFavorite: false
       }
-      const updatedProjects = [...projects, newProject]
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedProjects))
+      saveProjects([...projects, newProject])
     }
 
     toast({
@@ -83,17 +83,6 @@ export function ProjectForm() {
     })
 
     navigate('/')
-  }
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setCoverImage(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
   }
 
   return (
@@ -107,13 +96,15 @@ export function ProjectForm() {
           variant="link"
           color="purple.600"
           mb={4}
-          leftIcon={<FiArrowLeft />}
+          leftIcon={<Icon as={FiArrowLeft as unknown as React.ElementType} />}
           onClick={() => navigate('/')}
         >
           Voltar
         </Button>
 
-        <Heading size="md" mb={6} color="purple.700">{id ? 'Editar projeto' : 'Novo projeto'}</Heading>
+        <Heading size="md" mb={6} color="purple.700">
+          {id ? 'Editar projeto' : 'Novo projeto'}
+        </Heading>
 
         <FormControl mb={4} isRequired>
           <FormLabel>Nome do projeto (Obrigatório)</FormLabel>
@@ -137,24 +128,7 @@ export function ProjectForm() {
 
         <FormControl>
           <FormLabel>Capa do projeto</FormLabel>
-          <Box
-            border="1px dashed"
-            borderColor="gray.300"
-            borderRadius="md"
-            p={6}
-            textAlign="center"
-            bg="gray.50"
-          >
-            <VStack spacing={2}>
-              <Icon as={FiUpload} boxSize={6} color="gray.400" />
-              <Text color="gray.600">Escolha uma imagem .jpg ou .png no seu dispositivo</Text>
-              <Button as="label" colorScheme="purple" variant="outline" borderRadius="full" cursor="pointer">
-                Selecionar
-                <Input type="file" hidden accept="image/*" onChange={handleImageUpload} />
-              </Button>
-              {coverImage && <Image src={coverImage} alt="Capa" maxH="120px" borderRadius="md" mt={2} />}
-            </VStack>
-          </Box>
+          <ImageUploader coverImage={coverImage} onChange={setCoverImage} />
         </FormControl>
 
         <Button colorScheme="purple" w="full" mt={6} onClick={handleSave}>

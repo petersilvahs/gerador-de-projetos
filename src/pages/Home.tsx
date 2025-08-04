@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import {
   Box, Heading, Text, Flex, Input, Button, Switch,
-  Select, Grid, useDisclosure, Modal, ModalOverlay, ModalContent,
-  ModalHeader, ModalBody, ModalFooter, ModalCloseButton, Image, Icon, Menu,
-  MenuButton, MenuList, MenuItem, IconButton, Divider, Center, List, ListItem, ListIcon
+  Select, Grid, useDisclosure, Image, Icon
 } from '@chakra-ui/react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { FiPlus, FiSearch, FiMoreHorizontal, FiEdit2, FiTrash, FiClock } from 'react-icons/fi'
-import { FaRegStar, FaStar } from 'react-icons/fa'
-import { MdCalendarToday } from 'react-icons/md'
+import { FiPlus, FiSearch } from 'react-icons/fi'
+import { getStoredProjects, saveProjects } from '../utils/storage'
+import { formatDate } from '../utils/formatDate'
+import { ProjectCard } from '../components/ProjectCard'
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal'
 
-interface Project {
+export interface Project {
   id: number
   name: string
   client: string
@@ -19,8 +19,6 @@ interface Project {
   isFavorite: boolean
   coverImage?: string
 }
-
-const LOCAL_STORAGE_KEY = 'gerador-projetos'
 
 export function Home() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -33,38 +31,21 @@ export function Home() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const loadProjects = () => {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (stored) {
-      try {
-        setProjects(JSON.parse(stored))
-      } catch {
-        setProjects([])
-      }
-    } else {
-      setProjects([])
-    }
-  }
-
   useEffect(() => {
-    loadProjects()
+    setProjects(getStoredProjects())
   }, [location.key])
 
   const toggleFavorite = (id: number) => {
-    setProjects(prev => {
-      const updated = prev.map(p => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p)
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
-      return updated
-    })
+    const updated = projects.map(p => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p)
+    saveProjects(updated)
+    setProjects(updated)
   }
 
   const deleteProject = () => {
     if (projectToDelete) {
-      setProjects(prev => {
-        const updated = prev.filter(p => p.id !== projectToDelete.id)
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
-        return updated
-      })
+      const updated = projects.filter(p => p.id !== projectToDelete.id)
+      saveProjects(updated)
+      setProjects(updated)
       onClose()
     }
   }
@@ -79,20 +60,12 @@ export function Home() {
       return 0
     })
 
-  const handleEdit = (project: Project) => {
-    navigate('/nova-tarefa', { state: { project } })
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
-  }
-
   return (
     <Box bg="#F8F7FD" minH="100vh">
       <Flex bg="purple.900" color="white" py={3} px={6} justify="center" align="center" position="relative">
         <Image src="/logo.png" alt="Logo" h="16" />
         <Box position="absolute" right={6}>
-          <Icon as={FiSearch} boxSize={5} cursor="pointer" onClick={() => setSearchVisible(!searchVisible)} />
+          <Icon as={FiSearch as unknown as React.ElementType} boxSize={5} cursor="pointer" onClick={() => setSearchVisible(!searchVisible)} />
         </Box>
       </Flex>
 
@@ -123,7 +96,7 @@ export function Home() {
               bg="purple.600"
               color="white"
               borderRadius="full"
-              leftIcon={<FiPlus />}
+              leftIcon={<Icon as={FiPlus as unknown as React.ElementType} />}
               _hover={{ bg: 'purple.700' }}
               onClick={() => navigate('/nova-tarefa')}
             >
@@ -134,69 +107,24 @@ export function Home() {
 
         <Grid templateColumns="repeat(auto-fill, minmax(260px, 1fr))" gap={6}>
           {filteredProjects.map(project => (
-            <Box key={project.id} borderRadius="xl" overflow="hidden" boxShadow="sm" bg="white" position="relative">
-              <Box bg="purple.400" h="120px" position="relative" display="flex" alignItems="center" justifyContent="center">
-                {project.coverImage ? (
-                  <Image src={project.coverImage} alt="Capa" objectFit="cover" w="full" h="full" />
-                ) : (
-                  <Text color="white" fontWeight="bold" fontSize="lg">Placeholder</Text>
-                )}
-                <Flex position="absolute" bottom={2} right={2} gap={1}>
-                  <IconButton size="sm" variant="ghost" onClick={() => toggleFavorite(project.id)} aria-label="Favorito">
-                    {project.isFavorite ? <FaStar color="#FFD700" /> : <FaRegStar color="#FFF" />}
-                  </IconButton>
-                  <Menu>
-                    <MenuButton
-                      as={IconButton}
-                      icon={<FiMoreHorizontal />}
-                      variant="solid"
-                      aria-label="Mais opções"
-                    />
-                    <MenuList>
-                      <MenuItem icon={<FiEdit2 />} onClick={() => handleEdit(project)}>Editar</MenuItem>
-                      <MenuItem icon={<FiTrash />} onClick={() => { setProjectToDelete(project); onOpen() }}>Remover</MenuItem>
-                    </MenuList>
-                  </Menu>
-                </Flex>
-              </Box>
-              <Box p={4}>
-                <Text fontWeight="bold" fontSize="lg" color="purple.900">{project.name}</Text>
-                <Text fontSize="md" color="gray.600"><Text as="span" fontWeight="bold" color="gray.800">Cliente:</Text> {project.client}</Text>
-                <Divider my={3} />
-                <Flex align="center" gap={3} fontSize="md" color="gray.600" mb={1}>
-                  <MdCalendarToday size={20} /> <Text>{formatDate(project.startDate)}</Text>
-                </Flex>
-                <Flex align="center" gap={3} fontSize="md" color="gray.600">
-                  <MdCalendarToday size={20} /> <Text>{formatDate(project.endDate)}</Text>
-                </Flex>
-              </Box>
-            </Box>
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onEdit={() => navigate('/nova-tarefa', { state: { project } })}
+              onDelete={() => { setProjectToDelete(project); onOpen() }}
+              toggleFavorite={() => toggleFavorite(project.id)}
+              formatDate={formatDate}
+            />
           ))}
         </Grid>
       </Box>
 
-      <Modal isOpen={isOpen} onClose={onClose} isCentered>
-        <ModalOverlay />
-        <ModalContent borderRadius="lg" p={6} pt={10} position="relative">
-          <Center position="absolute" top={-8} left="50%" transform="translateX(-50%)" bg="purple.500" borderRadius="full" boxSize={16} boxShadow="lg">
-            <Icon as={FiTrash} color="white" boxSize={6} />
-          </Center>
-          <ModalHeader textAlign="center" color="purple.900">Remover projeto</ModalHeader>
-          <Divider mb={4} />
-          <ModalBody textAlign="center" color="gray.600">
-            Essa ação removerá definitivamente o projeto:
-            <Text mt={2} fontWeight="bold" fontSize="lg" color="black">{projectToDelete?.name}</Text>
-          </ModalBody>
-          <ModalFooter justifyContent="center" gap={4}>
-            <Button variant="outline" color="purple.600" borderColor="purple.600" borderRadius="full" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button bg="purple.600" color="white" borderRadius="full" onClick={deleteProject} _hover={{ bg: 'purple.700' }}>
-              Confirmar
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <ConfirmDeleteModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onConfirm={deleteProject}
+        projectName={projectToDelete?.name || ''}
+      />
     </Box>
   )
 }
